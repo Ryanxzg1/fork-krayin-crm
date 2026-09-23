@@ -21,9 +21,8 @@
 
 1. [Introduction](#introduction)
 2. [Documentation](#documentation)
-3. [Requirements](#requirements)
-4. [Installation & Configuration](#installation-and-configuration)
-4. [Docker Installation](https://devdocs.krayincrm.com/2.0/introduction/docker.html)
+3. [Docker Local Development (Recommended)](#docker-local-development-recommended)
+4. [Native Requirements & Installation](#native-requirements--installation)
 5. [Krayin Cloud System](#krayin-cloud-hosting)
 6. [License](#license)
 7. [Security Vulnerabilities](#security-vulnerabilities)
@@ -62,59 +61,92 @@ Take advantage of two of the hottest frameworks used in this project -- Laravel 
 
 #### Krayin Documentation [https://devdocs.krayincrm.com](https://devdocs.krayincrm.com)
 
-### Requirements
+---
+
+### Docker Local Development (Recommended)
+
+Lingkungan pengembangan lokal proyek ini telah dikontainerisasi menggunakan **Docker** dan **Docker Compose** untuk menjamin konsistensi environment PHP 8.3, ekstensi lengkap, database MySQL 8.0, dan mail testing tanpa dependensi pada OS host.
+
+#### 1. Arsitektur Container
+- **`app` (`krayin-app`)**: PHP 8.3 FPM (Debian Bookworm) dengan ekstensi `calendar`, `pdo_mysql`, `mbstring`, `exif`, `pcntl`, `bcmath`, `gd`, `intl`, `zip`, `imap`, `opcache`, serta Composer 2 & Node.js 20 LTS.
+- **`webserver` (`krayin-webserver`)**: Nginx Alpine (`port 8081:80`).
+- **`db` (`krayin-db`)**: MySQL 8.0 (`port 3307:3306`, persistent volume `krayin-db-data`).
+- **`mailpit` (`krayin-mailpit`)**: Mock SMTP & Web UI Mailpit (`port 1025` SMTP, `port 8025` Web UI).
+
+#### 2. Panduan Menjalankan Proyek (Step-by-Step)
+
+##### Langkah 1: Siapkan Environment
+Salin file environment jika belum ada (atau sesuaikan file `.env` yang sudah disiapkan untuk Docker):
+```bash
+cp .env.example .env
+```
+> Pastikan variabel database di `.env` mengarah ke container:
+> `DB_CONNECTION=mysql`, `DB_HOST=db`, `DB_PORT=3306`, `DB_DATABASE=laravel-crm`, `DB_USERNAME=krayin`, `DB_PASSWORD=123456`, dan `APP_URL=http://localhost:8081`.
+
+##### Langkah 2: Build & Jalankan Container
+```bash
+docker compose up -d --build
+```
+
+##### Langkah 3: Install Dependensi PHP
+```bash
+docker compose exec app composer install
+```
+
+##### Langkah 4: Inisialisasi Krayin CRM (Key, Migrasi, Seeder, dan Admin)
+```bash
+docker compose exec app php artisan krayin-crm:install --skip-env-check
+```
+
+##### Langkah 5: Install & Build Frontend Assets (Vite)
+```bash
+docker compose exec app npm install
+docker compose exec app npm run build
+```
+
+#### 3. URL Akses Layanan Lokal
+- **Admin Panel Krayin CRM:** [http://localhost:8081/admin/login](http://localhost:8081/admin/login)
+  - Default / created admin credentials sesuai prompt saat instalasi.
+- **Mailpit Web UI (Email Testing):** [http://localhost:8025](http://localhost:8025)
+- **Database MySQL (Akses GUI dari Host):** `127.0.0.1:3307`
+  - User: `krayin` | Password: `123456` | Database: `laravel-crm`
+
+#### 4. Perintah Harian yang Sering Digunakan
+- **Vite Hot-Reloading (Frontend Dev):**
+  ```bash
+  docker compose exec app npm run dev
+  ```
+- **Menjalankan Artisan Command:**
+  ```bash
+  docker compose exec app php artisan <perintah>
+  ```
+- **Menghentikan / Menyalakan Container:**
+  ```bash
+  docker compose stop
+  docker compose start
+  ```
+
+---
+
+### Native Requirements & Installation
+
+Gunakan instruksi ini hanya jika kamu tidak ingin menggunakan Docker dan memilih menjalankan langsung di OS host:
 
 -   **SERVER**: Apache 2 or NGINX.
 -   **RAM**: 3 GB or higher.
--   **PHP**: 8.3 or higher
--   **Composer**: 2.5 or higher
+-   **PHP**: 8.3 or higher (ekstensi: calendar, ctype, curl, dom, fileinfo, filter, gd, hash, intl, json, mbstring, openssl, pcre, pdo, session, tokenizer, xml, imap, zip).
+-   **Composer**: 2.5 or higher.
 -   **For MySQL users**: 8.0.32 or higher.
 -   **For MariaDB users**: 11.4 LTS or higher (11.8 LTS recommended).
 
-### Installation and Configuration
-
-##### Execute these commands below, in order
-
-```
-composer create-project
-```
-
--   Find **.env** file in root directory and change the **APP_URL** param to your **domain**.
-
--   Also, Configure the **Mail** and **Database** parameters inside **.env** file.
-
-```
+##### Execute these commands below, in order:
+```bash
+composer install
+php artisan key:generate
 php artisan krayin-crm:install
-```
-
-**To execute Krayin**:
-
-##### On server:
-
-Warning: Before going into production mode we recommend you uninstall developer dependencies.
-In order to do that, run the command below:
-
-> composer install --no-dev
-
-```
-Open the specified entry point in your hosts file in your browser or make an entry in hosts file if not done.
-```
-
-##### On local:
-
-```
-php artisan route:clear
+npm install
+npm run build
 php artisan serve
-```
-
-
-**How to log in as admin:**
-
-> _http(s)://example.com/admin/login_
-
-```
-email:admin@example.com
-password:admin123
 ```
 
 ### Krayin Cloud Hosting
